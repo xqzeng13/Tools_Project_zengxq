@@ -43,30 +43,34 @@ from scipy import ndimage
 
 if __name__ == '__main__':
     ##############路径设置#########
-    # datapath=r"D:\result_fusion\\"
-    # savepath=r'D:\result_fusion\Result_fusion\\'
 
-    datafilePath = r'D:\Work\Datasets\Challenge\test\pred_result\result\\'
-    dataoutput = r'D:\Work\Datasets\Challenge\test\pred_result\\'
+    # datafilePath = r'D:\Work\Datasets\Normaldatas89\\'
+    # dataoutput = r'D:\Work\Datasets\Normaldatas89\dilate_erode_target_fusion\\'
+    #
+    # dataList_64 = sorted(glob.glob(os.path.join(datafilePath, 'fusion_result/*.nii.gz')))
+    # dataList_32 = sorted(glob.glob(os.path.join(datafilePath, 'dilate/*.nii.gz')))
+    # dataList_16 = sorted(glob.glob(os.path.join(datafilePath, 'erode/*.nii.gz')))
+    #
+    #
+    # # dataimage = r'D:\Work\Datasets\GoldNormaldatas20\label\Normal074-MRA.nii.gz'
+    # # # TODO 获取图像坐标SPCING信息
+    # # data = sitk.ReadImage(dataimage)
+    # # unet_data = nib.load(r'D:\result_fusion\0_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
+    # # unet_attention_data = nib.load(r'D:\result_fusion\A_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
+    # # unet_Rattention_data = nib.load(r'D:\result_fusion\RA_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
+    # for N in range (len(dataList_64)):
+    #     print('\r[ %d / %d]' % (N, len(dataList_64)), end='')
 
-    unet_dataList = sorted(glob.glob(os.path.join(datafilePath, 'ranojuchi/*.nii.gz')))
 
-    unet_raList = sorted(glob.glob(os.path.join(datafilePath, 'fusion/*.nii.gz')))
-    unet_noresList = sorted(glob.glob(os.path.join(datafilePath, 'nores/*.nii.gz')))
-    dataimage = r'D:\Work\Datasets\GoldNormaldatas20\label\Normal074-MRA.nii.gz'
-    # TODO 获取图像坐标SPCING信息
-    data = sitk.ReadImage(dataimage)
-    # unet_data = nib.load(r'D:\result_fusion\0_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
-    # unet_attention_data = nib.load(r'D:\result_fusion\A_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
-    # unet_Rattention_data = nib.load(r'D:\result_fusion\RA_0.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
-    for N in range (len(unet_dataList)):
-        name="predt"+str(unet_dataList[N]).split('predt')[1]
-        unet_data = nib.load(unet_dataList[N]).get_fdata()
-        unet_ra = nib.load(unet_raList[N]).get_fdata()
-        unet_nores = nib.load(unet_noresList[N]).get_fdata()
-
-        fusion_data = unet_data + unet_ra + unet_nores
-        fusion_data[fusion_data < 2] = 0
+        # name=str(dataList_64[N]).split('fusion_result\\')[-1]
+        # data_64 = nib.load(dataList_64[N]).get_fdata()
+        # data_32 = nib.load(dataList_32[N]).get_fdata()
+        # data_16 = nib.load(dataList_16[N]).get_fdata()
+        name="Normal002-MRA_brain.nii.gz"
+        data_64 = nib.load(r'D:\Normal002-MRA_brain.nii.gz').get_fdata()
+        data_32 = nib.load(r'D:\Work\Datasets\Normaldatas89\img_process\Normal002-MRA_brain.nii.gz').get_fdata()
+        fusion_data = data_64 + data_32
+        # fusion_data[fusion_data < 2] = 0
         fusion_data[fusion_data >= 2] = 1
         # unet_data1 = nib.load(r'D:\result_fusion\0_1.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
         # unet_attention_data1 = nib.load(r'D:\result_fusion\A_1.nii.gz').get_fdata()  ###(dtype=np.float32)?????????????
@@ -85,11 +89,13 @@ if __name__ == '__main__':
         # pred_img=pred_img.numpy()
         # print(pred_img.shape)
         # savepath=r'D:\result_fusion\\'
-        pred_img = fusion_data.swapaxes(0, 2)  ###交换x,z  调整方向
-        pred_img = sitk.GetImageFromArray(np.squeeze(np.array(pred_img, dtype='uint8')))
-        ######################################################先转为numpy(),再转为数组array，再减少维数送入sitk中处理
-        ##TODO 赋予原图的图像信息：方向，原坐标，层间距
-        pred_img.SetDirection(data.GetDirection())  ###########图像方向不变
-        pred_img.SetOrigin(data.GetOrigin())  ###########图像原点不变
-        pred_img.SetSpacing((data.GetSpacing()[0], data.GetSpacing()[1], data.GetSpacing()[2]))
-        sitk.WriteImage(pred_img, os.path.join(dataoutput,name))
+        # pred_img = fusion_data.swapaxes(0, 2)  ###交换x,z  调整方向
+        # pred_img = sitk.GetImageFromArray(np.squeeze(np.array(pred_img, dtype='uint8')))
+        # ######################################################先转为numpy(),再转为数组array，再减少维数送入sitk中处理
+        # ##TODO 赋予原图的图像信息：方向，原坐标，层间距
+        # pred_img.SetDirection(data.GetDirection())  ###########图像方向不变
+        # pred_img.SetOrigin(data.GetOrigin())  ###########图像原点不变
+        # pred_img.SetSpacing((data.GetSpacing()[0], data.GetSpacing()[1], data.GetSpacing()[2]))
+        # sitk.WriteImage(pred_img, os.path.join(dataoutput,name))
+        fusion_image=nib.Nifti1Image(fusion_data,nib.load(r'D:\Work\Datasets\Normaldatas89\img_process\Normal002-MRA_brain.nii.gz').affine)
+        nib.save(fusion_image,r'D:\Work\Datasets\Normaldatas89\img_process\area_grow\fusion_result\\'+name)

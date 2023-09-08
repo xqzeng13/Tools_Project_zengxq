@@ -1,10 +1,9 @@
 ''''
-function1：从文件夹中读取对应模态(标签)进行分割
-function2：顺序裁取patches
-function3:随机裁取patches
-
-找到对应模态读取对应文件
-归一化处理，
+time: 2022.8.15
+author： zengxq
+function1：从文件夹中读取对应模态(标签)
+function2：将获取文件存入新的文件夹中（data/label）只取一个模态，2分类
+function3：生成用于训练的json 文件
 
 '''
 import numpy
@@ -25,7 +24,7 @@ import os
 # from lib.medloaders import medical_image_process as img_loader
 # from lib.visual3D_temp import *
 ##########可用
-def create_random_train_direct_volumes(samples,crop_size,normalization,th_percent,part_vol_path,csvname,pathname):
+def get_img_from_dir(savepath,savetxtfile,csvname,pathname):
     """
 
     :param ls: list of modality paths, where the last path is the segmentation map
@@ -50,85 +49,31 @@ def create_random_train_direct_volumes(samples,crop_size,normalization,th_percen
     # pathname = r'E:\MICCAI_BraTS2020_TrainingData~\MICCAI_BraTS2020_TrainingData\\'
     # edgepath=r'/data4/zengxq/64Xsamples/64xsamples/edge/'
     # hessianpath=r'/data4/zengxq/64Xsamples/64xsamples/hessian/'
+    savedata=os.path.join(savepath, 'data\\')
+    savelabel=os.path.join(savepath, 'label\\')
+
     input_df = pd.read_csv(csvname)
     print("\n sum of train patches is :", input_df.shape[0])
     for i in range(input_df.shape[0]):
         print('\r[ %d / %d]' % (i, input_df.shape[0]), end='')
+
+
         dir_name = pathname + input_df.iloc[i].at['BraTS_2020_subject_ID']
         dataname = dir_name + '\\' + input_df.iloc[i].at['BraTS_2020_subject_ID'] + '_t1ce.nii.gz'
         labelname = dir_name + '\\' + input_df.iloc[i].at['BraTS_2020_subject_ID'] + '_01seg.nii.gz'
-
+        file_data=savedata+input_df.iloc[i].at['BraTS_2020_subject_ID']+'_t1ce_0000.nii.gz'
+        file_label=savelabel+input_df.iloc[i].at['BraTS_2020_subject_ID']+'_01seg_0000.nii.gz'
         # 讲print的信息保存到txt文件
-        # fp = open(r'D:\Work\Datasets\samples\recode.txt', "a+")  # a+ 如果文件不存在就创建。存在就在文件内容的后面继续追加
+        fp = open(savetxtfile, "a+")  # a+ 如果文件不存在就创建。存在就在文件内容的后面继续追加
         # print("N is :",N)
         print("image is :", input_df.iloc[i].at['BraTS_2020_subject_ID'])
+        print("\n{image:./imagesTr/",input_df.iloc[i].at['BraTS_2020_subject_ID'],"_t1ce_0000.nii.gz,","\n label:./labelsTr/",input_df.iloc[i].at['BraTS_2020_subject_ID'],"_01seg_0000.nii.gz\n}",file=fp)
+
         img_nii = nib.load(dataname)
         label_nii = nib.load(labelname)
+        nib.save(img_nii,file_data)
+        nib.save(label_nii,file_label)
         ###标签处理，多类合为2类
-        label_arr=label_nii.get_fdata()
-        label_arr[label_arr>0]=1
-        full_vol_dim=label_nii.shape
-        for N in range(samples):
-            print('\r[ %d / %d]' % (N, samples), end='')
-
-            ###随机裁取选择合适占比
-            while True:
-                crop = find_random_crop_dim(full_vol_dim, crop_size)
-                full_segmentation_map = load_crop_to_mage(label_nii, viz3d=True, type='label',crop_size=crop_size,crop=crop)
-                full_segmentation_map = fix_seg_map(full_segmentation_map, 'Vessel')#标签归一
-                #
-                segmentation_map = load_crop_to_mage(label_nii, type='label', crop_size=crop_size,crop=crop)
-                # segmentation_map = fix_seg_map(segmentation_map, 'Vessel')
-                img_tensor = load_crop_to_mage(img_nii, type="T1",normalization=normalization,crop_size=crop_size, crop=crop)
-
-                if find_non_zero_labels_mask(segmentation_map, th_percent, crop_size, crop):
-                    # print('real_save_crop is :', crop)
-                    # segmentation_map = load_crop_to_mage(label_nii, type='label', crop_size=crop_size,
-                    #                                                 crop=crop)
-                    # segmentation_map = fix_seg_map(segmentation_map, 'Vessel')
-
-                    # new_image = nib.Nifti1Image(label_arr, np.eye(4))
-                    # nib.save(new_image,
-                    #          r'E:\MICCAI_BraTS2020_TrainingData~\MICCAI_BraTS2020_TrainingData\BraTS20_Training_057\reshampe.nii.gz')
-
-                    # img_tensor = load_crop_to_mage(img_nii, type="T1", normalization=normalization,crop_size=crop_size, crop=crop)
-                    ####TODO check
-                    # pred_img = sitk.GetImageFromArray((np.array(img_tensor.numpy(), dtype='uint8')))
-                    # ######################################################先转为numpy(),再转为数组array，再减少维数送入sitk中处理
-                    #
-                    # sitk.WriteImage(pred_img, os.path.join(r'D:\Work\Datasets\GoldNormaldatas20\\',
-                    #                                        'patch_result-' + '.nii.gz'))
-                    print("Saving sample>>>>>>>>>>>>>>>>>>>>>>>>>")
-                    filename2 = part_vol_path + 'train_random' + str(crop) + '__'+str(i)
-
-                    f_t1 = filename2 + str(0) + '.npy'
-                    # list2_saved_paths.append(f_t1)
-                    np.save(f_t1, img_tensor)
-
-                    f_seg = filename2 + 'seg.npy'
-                    np.save(f_seg, segmentation_map)
-                    # list2_saved_paths.append(f_seg)
-                    # list2_saved_paths = []
-                    # tensor_images = []
-                    # list2.append(tuple(list2_saved_paths))
-                    # list2 = []
-                    break
-
-
-
-    ########应该增加随某个文件不同保存相关的patch
-    # number_array=full_prob.swapaxes(0,2)
-    # # print(number_array)
-    # number_label = sitk.GetImageFromArray(np.squeeze(np.array(number_array.numpy(), dtype='uint8')))
-    # sitk.WriteImage(number_label, os.path.join(number_label_savepath, mode +str(N)+'_order_number_label'+ '.nii' ))
-
-    # list_all.append(list1)
-    # list_part.append(list2)
-    # print("list_all is :", list_all)
-    # print("list_part :", list_part)
-    # print("List2 is :",list2)
-
-    # return list2
 
 
 def create_order_train_direct_volumes(samples, crop_size, normalization, th_percent, part_vol_path, csvname, pathname):
@@ -415,17 +360,19 @@ def find_non_zero_labels_mask(segmentation_map, th_percent, crop_size, crop):
     else:
         return False
 if __name__ == '__main__':
-    print('start crop patches !!!')
+    print('start get img !!!')
     ###TODO 参数
-    samples =40
-    crop_size=(64,64,64)
-    normalization='full_volume_mean'
-    th_percent=0.02
-    part_vol_path=r'E:\BraTS_64x64x64_samples\train_val\\'
+    # samples =40
+    # crop_size=(64,64,64)
+    # normalization='full_volume_mean'
+    # th_percent=0.02
+    # part_vol_path=r'E:\BraTS_64x64x64_samples\train_val\\'
+    savepath=r'E:\BraTS_training\\'
+    savetxtfile=r'E:\BraTS_training\file.txt'
     csvname = r'E:\MICCAI_BraTS2020_TrainingData~\MICCAI_BraTS2020_TrainingData\name_mapping.csv'  # train_hessian_debug.csv Work\Datasets\new_samples\train_only_vessel_new.csv
     pathname = r'E:\MICCAI_BraTS2020_TrainingData~\MICCAI_BraTS2020_TrainingData\\'
-    print("############====Crop Random======#############")
-    create_random_train_direct_volumes(samples,crop_size,normalization,th_percent,part_vol_path,csvname,pathname)
-    print("############====Crop Order======#############")
-    create_order_train_direct_volumes(samples,crop_size,normalization,th_percent,part_vol_path,csvname,pathname)
+    print("############====Get img ======#############")
+    get_img_from_dir(savepath,savetxtfile,csvname,pathname)
+    # print("############====Crop Order======#############")
+    # create_order_train_direct_volumes(samples,crop_size,normalization,th_percent,part_vol_path,csvname,pathname)
 
